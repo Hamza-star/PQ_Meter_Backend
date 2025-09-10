@@ -41,8 +41,8 @@ export class MeterController {
     return {
       current: {
         present: s.current,
-        min: s.minCurrent,
-        max: s.maxCurrent,
+        'Min I Average': a.minCurrent ?? null, // average min
+        'Max I Average': a.maxCurrent ?? null, // average max
         'I Average (A)': a['I Average (A)'],
         'Current Unbalance (%)': s['Current Unbalance (%)'],
       },
@@ -111,26 +111,15 @@ export class MeterController {
     };
   }
 
-  @Get('demand-readings')
-  async getDemandReadings() {
-    const meterData = await this.meterService.getSnapshot();
-    if (!meterData?.structured) {
-      return { message: 'No demand data available' };
-    }
+  // @Get('demand-readings')
+  // async getDemandReadings() {
+  //   const snapshot = await this.meterService.getSnapshot();
+  //   if (!snapshot?.structured) return { message: 'No data available' };
 
-    const s = meterData.structured;
-
-    return {
-      peakDemand: {
-        current: s.maxDemand?.current ?? null,
-        power: s.maxDemand?.power ?? null,
-        timeOfPeak: s.maxDemand?.timeOfPeak ?? null,
-      },
-      lastInterval: {
-        current: s.previousDemand?.current ?? null,
-        power: s.previousDemand?.power ?? null,
-        timeOfPeak: s.previousDemand?.timeOfPeak ?? null,
-      },
-    };
-  }
+  //   return {
+  //     maxDemand: snapshot.structured.maxDemand,
+  //     previousDemand: snapshot.structured.previousDemand,
+  //     demandTimeOfPeak: snapshot.demandTimeOfPeak,
+  //   };
+  // }
 }
