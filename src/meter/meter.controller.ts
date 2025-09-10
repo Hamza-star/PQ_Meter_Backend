@@ -9,97 +9,101 @@ import { MeterService } from './meter.service';
 export class MeterController {
   constructor(private readonly meterService: MeterService) {}
 
-  // Snapshot route (raw + structured)
   @Get('snapshot')
   async getSnapshot() {
     return this.meterService.getSnapshot();
   }
 
-  // Basic readings route
+  @Get('power-quality')
+  async getPowerQuality() {
+    const meterData = await this.meterService.getSnapshot();
+    if (!meterData?.structured) return { message: 'No data available' };
+
+    const s = meterData.structured;
+
+    return {
+      voltageTHD: s.voltageTHD,
+      currentTHD: s.currentTHD,
+      kFactor: s.kFactor,
+      crestFactor: s.crestFactor,
+    };
+  }
+
   @Get('basic-readings')
   async getBasicReadings() {
     const meterData = await this.meterService.getSnapshot();
-    if (!meterData?.structured || !meterData?.averages) {
+    if (!meterData?.structured || !meterData?.averages)
       return { message: 'No data available' };
-    }
 
     const s = meterData.structured;
     const a = meterData.averages;
 
     return {
       current: {
-        values: s.current,
+        present: s.current,
         min: s.minCurrent,
         max: s.maxCurrent,
         'I Average (A)': a['I Average (A)'],
         'Current Unbalance (%)': s['Current Unbalance (%)'],
       },
       voltageLN: {
-        values: s.voltageLN,
-        min: s.minVoltageLN,
-        max: s.maxVoltageLN,
-        'Voltage L-N Average (V)': a['Voltage L-N Average (V)'],
-        'Max Voltage L-N Average (V)': a.maxVoltageLN,
-        'Min Voltage L-N Average (V)': a.minVoltageLN,
+        averages: {
+          present: a['Voltage L-N Average (V)'],
+          min: a.minVoltageLN,
+          max: a.maxVoltageLN,
+        },
       },
       voltageLL: {
-        values: s.voltageLL,
-        min: s.minVoltageLL,
-        max: s.maxVoltageLL,
-        'Voltage L-L Average (V)': a['Voltage L-L Average (V)'],
-        'Max Voltage L-L Average (V)': a.maxVoltageLL,
-        'Min Voltage L-L Average (V)': a.minVoltageLL,
+        averages: {
+          present: a['Voltage L-L Average (V)'],
+          min: a.minVoltageLL,
+          max: a.maxVoltageLL,
+        },
       },
       power: {
         'Active (kW)': {
-          present: s.power['Active (kW)'].present,
-          min: s.minPowerTotal['Active (kW)'],
-          max: s.maxPowerTotal['Active (kW)'],
+          present: s.power['Active (kW)']?.present ?? null,
+          min: s.minPowerTotal['Active (kW)'] ?? null,
+          max: s.maxPowerTotal['Active (kW)'] ?? null,
         },
         'Reactive (kVAR)': {
-          present: s.power['Reactive (kVAR)'].present,
-          min: s.minPowerTotal['Reactive (kVAR)'],
-          max: s.maxPowerTotal['Reactive (kVAR)'],
+          present: s.power['Reactive (kVAR)']?.present ?? null,
+          min: s.minPowerTotal['Reactive (kVAR)'] ?? null,
+          max: s.maxPowerTotal['Reactive (kVAR)'] ?? null,
         },
         'Apparent (kVA)': {
-          present: s.power['Apparent (kVA)'].present,
-          min: s.minPowerTotal['Apparent (kVA)'],
-          max: s.maxPowerTotal['Apparent (kVA)'],
+          present: s.power['Apparent (kVA)']?.present ?? null,
+          min: s.minPowerTotal['Apparent (kVA)'] ?? null,
+          max: s.maxPowerTotal['Apparent (kVA)'] ?? null,
         },
       },
       'Power Factor Total': s.power['Power Factor Total'],
     };
   }
 
-  // Voltage readings route
   @Get('voltage-readings')
   async getVoltageReadings() {
     const meterData = await this.meterService.getSnapshot();
-    if (!meterData?.structured || !meterData?.averages) {
+    if (!meterData?.structured || !meterData?.averages)
       return { message: 'No data available' };
-    }
 
     const s = meterData.structured;
     const a = meterData.averages;
 
     return {
       voltageLN: {
-        values: s.voltageLN,
+        present: s.voltageLN,
         min: s.minVoltageLN,
         max: s.maxVoltageLN,
         'Voltage L-N Average (V)': a['Voltage L-N Average (V)'],
       },
       voltageLL: {
-        values: s.voltageLL,
+        present: s.voltageLL,
         min: s.minVoltageLL,
         max: s.maxVoltageLL,
         'Voltage L-L Average (V)': a['Voltage L-L Average (V)'],
       },
       'Voltage Unbalance (%)': s['Voltage Unbalance (%)'],
-      'Max Voltage L-N Average (V)': a.maxVoltageLN,
-      'Max Voltage L-L Average (V)': a.maxVoltageLL,
-      'Min Voltage L-N Average (V)': a.minVoltageLN,
-      'Min Voltage L-L Average (V)': a.minVoltageLL,
     };
   }
 }

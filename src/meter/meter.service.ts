@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
@@ -16,7 +17,6 @@ export class MeterService {
     @InjectModel(Snapshot.name) private snapshotModel: Model<SnapshotDocument>,
   ) {}
 
-  // Fetch Node-RED data
   async fetchNodeRedData(): Promise<any> {
     try {
       const response = await axios.get('http://127.0.0.1:1880/realtimelink');
@@ -27,7 +27,6 @@ export class MeterService {
     }
   }
 
-  // Remove timestamps recursively
   private cleanData(data: any): any {
     if (!data || typeof data !== 'object') return data;
     const cleaned: any = Array.isArray(data) ? [] : {};
@@ -38,7 +37,6 @@ export class MeterService {
     return cleaned;
   }
 
-  // Transform raw → structured
   private transformData(raw: any) {
     const structured = {
       voltageLN: {
@@ -49,7 +47,7 @@ export class MeterService {
       voltageLL: {
         'Vll ab (V)': raw['SAH_MTO_PQM1_VOLTAGE_LINE_1_2_V'],
         'Vll bc (V)': raw['SAH_MTO_PQM1_VOLTAGE_LINE_2_3_V'],
-        'lVll ca (V)': raw['SAH_MTO_PQM1_VOLTAGE_LINE_3_1_V'],
+        'Vll ca (V)': raw['SAH_MTO_PQM1_VOLTAGE_LINE_3_1_V'],
       },
       current: {
         'I a (A)': raw['SAH_MTO_PQM1_CURRENT_LINE_1_A'],
@@ -75,43 +73,65 @@ export class MeterService {
           S3: raw['SAH_MTO_PQM1_APPARENT_POWER_S3_KVA'],
           present: raw['SAH_MTO_PQM1_APPARENT_POWER_TOTAL_KVA'],
         },
-        'Power Factor Total': {
-          present: raw['SAH_MTO_PQM1_POWER_FACTOR_TOTAL'],
-          min: raw['SAH_MTO_PQM1_Min_POWER_FACTOR_TOTAL'],
-          max: raw['SAH_MTO_PQM1_Max_POWER_FACTOR_TOTAL'],
-        },
+        'Power Factor Total': raw['SAH_MTO_PQM1_POWER_FACTOR_TOTAL'],
       },
+
       'Current Unbalance (%)': raw['SAH_MTO_PQM1_UNBALANCE_FACTOR_CURRENT'],
       'Voltage Unbalance (%)': raw['SAH_MTO_PQM1_UNBALANCE_FACTOR_VOLTAGE'],
+
+      // THD
+      voltageTHD: {
+        'V1 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_V1_THD_1'] ?? null,
+        'V2 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_V2_THD_1'] ?? null,
+        'V3 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_V3_THD_1'] ?? null,
+      },
+      currentTHD: {
+        'I1 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_I1_THD_1'] ?? null,
+        'I2 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_I2_THD_1'] ?? null,
+        'I3 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_I3_THD_1'] ?? null,
+      },
+
+      kFactor: {
+        'I1 K Factor': raw['SAH_MTO_PQM1_KFactor_CURRENT_1'] ?? null,
+        'I2 K Factor': raw['SAH_MTO_PQM1_KFactor_CURRENT_2'] ?? null,
+        'I3 K Factor': raw['SAH_MTO_PQM1_KFactor_CURRENT_3'] ?? null,
+      },
+      crestFactor: {
+        'I1 Crest Factor': raw['SAH_MTO_PQM1_CrestFactor_VOLTAGE_1'] ?? null,
+        'I2 Crest Factor': raw['SAH_MTO_PQM1_CrestFactor_VOLTAGE_2'] ?? null,
+        'I3 Crest Factor': raw['SAH_MTO_PQM1_CrestFactor_VOLTAGE_3'] ?? null,
+      },
+
+      // Min / Max
       maxVoltageLN: {
-        L1: raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_1_V'],
-        L2: raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_2_V'],
-        L3: raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_3_V'],
+        'Vln a (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_1_V'],
+        'Vln b (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_2_V'],
+        'Vln c (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_3_V'],
       },
       maxVoltageLL: {
-        L1_2: raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_1_2_V'],
-        L2_3: raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_2_3_V'],
-        L3_1: raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_3_1_V'],
+        'Vll ab (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_1_2_V'],
+        'Vll bc (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_2_3_V'],
+        'Vll ca (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_3_1_V'],
       },
       minVoltageLN: {
-        L1: raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_1_V'],
-        L2: raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_2_V'],
-        L3: raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_3_V'],
+        'Vln a (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_1_V'],
+        'Vln b (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_2_V'],
+        'Vln c (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_3_V'],
       },
       minVoltageLL: {
-        L1_2: raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_1_2_V'],
-        L2_3: raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_2_3_V'],
-        L3_1: raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_3_1_V'],
+        'Vll ab (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_1_2_V'],
+        'Vll bc (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_2_3_V'],
+        'Vll ca (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_3_1_V'],
       },
       maxCurrent: {
-        I1: raw['SAH_MTO_PQM1_Max_CURRENT_LINE_1_A'],
-        I2: raw['SAH_MTO_PQM1_Max_CURRENT_LINE_2_A'],
-        I3: raw['SAH_MTO_PQM1_Max_CURRENT_LINE_3_A'],
+        'I a (A)': raw['SAH_MTO_PQM1_Max_CURRENT_LINE_1_A'],
+        'I b (A)': raw['SAH_MTO_PQM1_Max_CURRENT_LINE_2_A'],
+        'I c (A)': raw['SAH_MTO_PQM1_Max_CURRENT_LINE_3_A'],
       },
       minCurrent: {
-        I1: raw['SAH_MTO_PQM1_Min_CURRENT_LINE_1_A'],
-        I2: raw['SAH_MTO_PQM1_Min_CURRENT_LINE_2_A'],
-        I3: raw['SAH_MTO_PQM1_Min_CURRENT_LINE_3_A'],
+        'I a (A)': raw['SAH_MTO_PQM1_Min_CURRENT_LINE_1_A'],
+        'I b (A)': raw['SAH_MTO_PQM1_Min_CURRENT_LINE_2_A'],
+        'I c (A)': raw['SAH_MTO_PQM1_Min_CURRENT_LINE_3_A'],
       },
       maxPowerTotal: {
         'Active (kW)': raw['SAH_MTO_PQM1_Max_ACTIVE_POWER_TOTAL_KW'],
@@ -128,18 +148,10 @@ export class MeterService {
     return { structured, raw };
   }
 
-  // Calculate averages
   private calculateAverages(structured: any) {
-    const parseNumber = (val: any): number | null => {
-      if (val === null || val === undefined) return null;
-      const n = parseFloat(String(val).trim());
-      return isNaN(n) ? null : n;
-    };
-
-    const avg = (vals: any[]): number | null => {
-      const nums = vals.map(parseNumber).filter((v) => v !== null);
-      if (!nums.length) return null;
-      return nums.reduce((a, b) => a + b, 0) / nums.length;
+    const avg = (vals: any[]) => {
+      const nums = vals.map((v) => parseFloat(v)).filter((v) => !isNaN(v));
+      return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
     };
 
     return {
@@ -159,34 +171,34 @@ export class MeterService {
         structured.voltageLL['Vll ca (V)'],
       ]),
       maxVoltageLN: avg([
-        structured.maxVoltageLN.L1,
-        structured.maxVoltageLN.L2,
-        structured.maxVoltageLN.L3,
+        structured.maxVoltageLN['Vln a (V)'],
+        structured.maxVoltageLN['Vln b (V)'],
+        structured.maxVoltageLN['Vln c (V)'],
       ]),
       maxVoltageLL: avg([
-        structured.maxVoltageLL.L1_2,
-        structured.maxVoltageLL.L2_3,
-        structured.maxVoltageLL.L3_1,
+        structured.maxVoltageLL['Vll ab (V)'],
+        structured.maxVoltageLL['Vll bc (V)'],
+        structured.maxVoltageLL['Vll ca (V)'],
       ]),
       minVoltageLN: avg([
-        structured.minVoltageLN.L1,
-        structured.minVoltageLN.L2,
-        structured.minVoltageLN.L3,
+        structured.minVoltageLN['Vln a (V)'],
+        structured.minVoltageLN['Vln b (V)'],
+        structured.minVoltageLN['Vln c (V)'],
       ]),
       minVoltageLL: avg([
-        structured.minVoltageLL.L1_2,
-        structured.minVoltageLL.L2_3,
-        structured.minVoltageLL.L3_1,
+        structured.minVoltageLL['Vll ab (V)'],
+        structured.minVoltageLL['Vll bc (V)'],
+        structured.minVoltageLL['Vll ca (V)'],
       ]),
       maxCurrent: avg([
-        structured.maxCurrent.I1,
-        structured.maxCurrent.I2,
-        structured.maxCurrent.I3,
+        structured.maxCurrent['I a (A)'],
+        structured.maxCurrent['I b (A)'],
+        structured.maxCurrent['I c (A)'],
       ]),
       minCurrent: avg([
-        structured.minCurrent.I1,
-        structured.minCurrent.I2,
-        structured.minCurrent.I3,
+        structured.minCurrent['I a (A)'],
+        structured.minCurrent['I b (A)'],
+        structured.minCurrent['I c (A)'],
       ]),
     };
   }
