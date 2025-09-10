@@ -16,6 +16,10 @@ export class Snapshot {
     averages: Record<string, any>;
     raw: Record<string, any>;
   };
+
+  // Demand Time of Peak ka dedicated field
+  @Prop({ type: Date, default: null })
+  demandTimeOfPeak: Date | null;
 }
 
 export type SnapshotDocument = Snapshot & Document;

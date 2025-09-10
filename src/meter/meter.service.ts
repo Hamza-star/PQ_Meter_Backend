@@ -143,6 +143,41 @@ export class MeterService {
         'Reactive (kVAR)': raw['SAH_MTO_PQM1_Min_REACTIVE_POWER_TOTAL_KVAR'],
         'Apparent (kVA)': raw['SAH_MTO_PQM1_Min_APPARENT_POWER_TOTAL_KVA'],
       },
+
+      // Demand and Time of Peak
+      maxDemand: {
+        current: {
+          'Ia (A)': raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_1_A'] ?? null,
+          'Ib (A)': raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_2_A'] ?? null,
+          'Ic (A)': raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_3_A'] ?? null,
+        },
+        power: {
+          'Active (kW)': raw['SAH_MTO_PQM1_MaxDemand_ACTIVE_POWER_KW'] ?? null,
+          'Reactive (kVAR)':
+            raw['SAH_MTO_PQM1_MaxDemand_REACTIVE_POWER_KVAR'] ?? null,
+          'Apparent (kVA)':
+            raw['SAH_MTO_PQM1_MaxDemand_APPARENT_POWER_KVA'] ?? null,
+        },
+        timeOfPeak: raw['SAH_MTO_PQM1_MaxDemand_TIMESTAMP'] ?? null, //  meter ka timestamp
+      },
+
+      // Previous Demand (Last Interval)
+      previousDemand: {
+        current: {
+          'Ia (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_1_A'] ?? null,
+          'Ib (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_2_A'] ?? null,
+          'Ic (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_3_A'] ?? null,
+        },
+        power: {
+          'Active (kW)':
+            raw['SAH_MTO_PQM1_PreviousDemand_ACTIVE_POWER_KW'] ?? null,
+          'Reactive (kVAR)':
+            raw['SAH_MTO_PQM1_PreviousDemand_REACTIVE_POWER_KVAR'] ?? null,
+          'Apparent (kVA)':
+            raw['SAH_MTO_PQM1_PreviousDemand_APPARENT_POWER_KVA'] ?? null,
+        },
+        timeOfPeak: raw['SAH_MTO_PQM1_PreviousDemand_TIMESTAMP'] ?? null, //
+      },
     };
 
     return { structured, raw };

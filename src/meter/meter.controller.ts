@@ -96,14 +96,41 @@ export class MeterController {
         min: s.minVoltageLN,
         max: s.maxVoltageLN,
         'Voltage L-N Average (V)': a['Voltage L-N Average (V)'],
+        maxVoltageLN: a.maxVoltageLN, // overall max avg
+        minVoltageLN: a.minVoltageLN, // overall min avg
       },
       voltageLL: {
         present: s.voltageLL,
         min: s.minVoltageLL,
         max: s.maxVoltageLL,
         'Voltage L-L Average (V)': a['Voltage L-L Average (V)'],
+        maxVoltageLL: a.maxVoltageLL, // overall max avg
+        minVoltageLL: a.minVoltageLL, // overall min avg
       },
       'Voltage Unbalance (%)': s['Voltage Unbalance (%)'],
+    };
+  }
+
+  @Get('demand-readings')
+  async getDemandReadings() {
+    const meterData = await this.meterService.getSnapshot();
+    if (!meterData?.structured) {
+      return { message: 'No demand data available' };
+    }
+
+    const s = meterData.structured;
+
+    return {
+      peakDemand: {
+        current: s.maxDemand?.current ?? null,
+        power: s.maxDemand?.power ?? null,
+        timeOfPeak: s.maxDemand?.timeOfPeak ?? null,
+      },
+      lastInterval: {
+        current: s.previousDemand?.current ?? null,
+        power: s.previousDemand?.power ?? null,
+        timeOfPeak: s.previousDemand?.timeOfPeak ?? null,
+      },
     };
   }
 }
