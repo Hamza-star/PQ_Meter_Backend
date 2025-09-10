@@ -41,9 +41,13 @@ export class MeterController {
     return {
       current: {
         present: s.current,
-        'Min I Average': a.minCurrent ?? null, // average min
-        'Max I Average': a.maxCurrent ?? null, // average max
+
+        min: s.minCurrent, // structured values
+        max: s.maxCurrent, // structured values
+
         'I Average (A)': a['I Average (A)'],
+        'Max I Average': a.maxCurrent ?? null, // average max
+        'Min I Average': a.minCurrent ?? null, // average min
         'Current Unbalance (%)': s['Current Unbalance (%)'],
       },
       voltageLN: {
