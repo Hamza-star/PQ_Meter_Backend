@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -37,8 +35,28 @@ export class MeterService {
     return cleaned;
   }
 
-  private transformData(raw: any) {
-    const structured = {
+  private updateDemandField(
+    prev: { value: string | null; timestamp: string | null } | undefined,
+    newValue: string | null,
+  ): { value: string | null; timestamp: string | null } {
+    if (newValue === null || newValue === undefined)
+      return prev || { value: null, timestamp: null };
+
+    const prevNum =
+      prev?.value !== null && prev?.value !== undefined
+        ? Number(prev.value)
+        : null;
+    const newNum = Number(newValue);
+
+    if (prevNum !== newNum) {
+      return { value: newValue, timestamp: new Date().toISOString() };
+    }
+
+    return prev!;
+  }
+
+  private transformData(raw: any, prevStructured: any = null) {
+    const structured: any = {
       voltageLN: {
         'Vln a (V)': raw['SAH_MTO_PQM1_VOLTAGE_LINE_1_V'],
         'Vln b (V)': raw['SAH_MTO_PQM1_VOLTAGE_LINE_2_V'],
@@ -75,11 +93,9 @@ export class MeterService {
         },
         'Power Factor Total': raw['SAH_MTO_PQM1_POWER_FACTOR_TOTAL'],
       },
-
       'Current Unbalance (%)': raw['SAH_MTO_PQM1_UNBALANCE_FACTOR_CURRENT'],
       'Voltage Unbalance (%)': raw['SAH_MTO_PQM1_UNBALANCE_FACTOR_VOLTAGE'],
 
-      // THD
       voltageTHD: {
         'V1 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_V1_THD_1'] ?? null,
         'V2 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_V2_THD_1'] ?? null,
@@ -102,7 +118,6 @@ export class MeterService {
         'I3 Crest Factor': raw['SAH_MTO_PQM1_CrestFactor_VOLTAGE_3'] ?? null,
       },
 
-      // Min / Max
       maxVoltageLN: {
         'Vln a (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_1_V'],
         'Vln b (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_2_V'],
@@ -144,39 +159,42 @@ export class MeterService {
         'Apparent (kVA)': raw['SAH_MTO_PQM1_Min_APPARENT_POWER_TOTAL_KVA'],
       },
 
-      // Demand and Time of Peak
-      maxDemand: {
-        current: {
-          'Ia (A)': raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_1_A'] ?? null,
-          'Ib (A)': raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_2_A'] ?? null,
-          'Ic (A)': raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_3_A'] ?? null,
-        },
-        power: {
-          'Active (kW)': raw['SAH_MTO_PQM1_MaxDemand_ACTIVE_POWER_KW'] ?? null,
-          'Reactive (kVAR)':
-            raw['SAH_MTO_PQM1_MaxDemand_REACTIVE_POWER_KVAR'] ?? null,
-          'Apparent (kVA)':
-            raw['SAH_MTO_PQM1_MaxDemand_APPARENT_POWER_KVA'] ?? null,
-        },
-        timeOfPeak: raw['SAH_MTO_PQM1_MaxDemand_TIMESTAMP'] ?? null, //  meter ka timestamp
+      demandInterval: {
+        'Ia (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_1_A'] ?? null,
+        'Ib (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_2_A'] ?? null,
+        'Ic (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_3_A'] ?? null,
       },
 
-      // Previous Demand (Last Interval)
-      previousDemand: {
+      // Max Demand with timestamp only if value changes
+      maxDemand: {
         current: {
-          'Ia (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_1_A'] ?? null,
-          'Ib (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_2_A'] ?? null,
-          'Ic (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_3_A'] ?? null,
+          'Ia (A)': this.updateDemandField(
+            prevStructured?.maxDemand?.current?.['Ia (A)'],
+            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_1_A'] ?? null,
+          ),
+          'Ib (A)': this.updateDemandField(
+            prevStructured?.maxDemand?.current?.['Ib (A)'],
+            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_2_A'] ?? null,
+          ),
+          'Ic (A)': this.updateDemandField(
+            prevStructured?.maxDemand?.current?.['Ic (A)'],
+            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_3_A'] ?? null,
+          ),
         },
         power: {
-          'Active (kW)':
-            raw['SAH_MTO_PQM1_PreviousDemand_ACTIVE_POWER_KW'] ?? null,
-          'Reactive (kVAR)':
-            raw['SAH_MTO_PQM1_PreviousDemand_REACTIVE_POWER_KVAR'] ?? null,
-          'Apparent (kVA)':
-            raw['SAH_MTO_PQM1_PreviousDemand_APPARENT_POWER_KVA'] ?? null,
+          'Active (kW)': this.updateDemandField(
+            prevStructured?.maxDemand?.power?.['Active (kW)'],
+            raw['SAH_MTO_PQM1_MaxDemand_ACTIVE_POWER_KW'] ?? null,
+          ),
+          'Reactive (kVAR)': this.updateDemandField(
+            prevStructured?.maxDemand?.power?.['Reactive (kVAR)'],
+            raw['SAH_MTO_PQM1_MaxDemand_REACTIVE_POWER_KVAR'] ?? null,
+          ),
+          'Apparent (kVA)': this.updateDemandField(
+            prevStructured?.maxDemand?.power?.['Apparent (kVA)'],
+            raw['SAH_MTO_PQM1_MaxDemand_APPARENT_POWER_KVA'] ?? null,
+          ),
         },
-        timeOfPeak: raw['SAH_MTO_PQM1_PreviousDemand_TIMESTAMP'] ?? null, //
       },
     };
 
@@ -185,7 +203,7 @@ export class MeterService {
 
   private calculateAverages(structured: any) {
     const avg = (vals: any[]) => {
-      const nums = vals.map((v) => parseFloat(v)).filter((v) => !isNaN(v));
+      const nums = vals.map((v) => Number(v)).filter((v) => !isNaN(v));
       return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
     };
 
@@ -243,7 +261,10 @@ export class MeterService {
     if (!newData) return;
 
     const cleanedData = this.cleanData(newData);
-    const { structured, raw } = this.transformData(cleanedData);
+    const prev = await this.snapshotModel.findOne().lean();
+    const prevStructured = prev?.meterData?.structured || null;
+
+    const { structured, raw } = this.transformData(cleanedData, prevStructured);
     const averages = this.calculateAverages(structured);
 
     if (raw && raw._id) delete raw._id;
@@ -254,7 +275,7 @@ export class MeterService {
       { upsert: true, new: true },
     );
 
-    this.logger.log('Snapshot updated (structured + averages + raw)');
+    this.logger.log('Snapshot updated with all fields + demand timestamps');
   }
 
   async getSnapshot(): Promise<any> {
@@ -265,3 +286,220 @@ export class MeterService {
     return snapshot?.meterData || {};
   }
 }
+
+// /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+// /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+// import { Injectable, Logger } from '@nestjs/common';
+// import { InjectModel } from '@nestjs/mongoose';
+// import { Model } from 'mongoose';
+// import axios from 'axios';
+// import { Snapshot, SnapshotDocument } from './schema/snapshot.schema';
+
+// @Injectable()
+// export class MeterService {
+//   private readonly logger = new Logger(MeterService.name);
+
+//   constructor(
+//     @InjectModel(Snapshot.name) private snapshotModel: Model<SnapshotDocument>,
+//   ) {}
+
+//   // Node-RED se data fetch
+//   async fetchNodeRedData(): Promise<any> {
+//     try {
+//       const response = await axios.get('http://127.0.0.1:1880/realtimelink');
+//       return response.data.Meter_Data;
+//     } catch (err) {
+//       this.logger.error('Failed to fetch Node-RED data', err);
+//       return null;
+//     }
+//   }
+
+//   // Data cleanup
+//   private cleanData(data: any): any {
+//     if (!data || typeof data !== 'object') return data;
+//     const cleaned: any = Array.isArray(data) ? [] : {};
+//     for (const key of Object.keys(data)) {
+//       cleaned[key] = this.cleanData(data[key]);
+//     }
+//     return cleaned;
+//   }
+
+//   // Update max demand with Node-RED timestamp
+//   private updateDemandField(
+//     prev:
+//       | { value: string | number | null; timestamp: string | null }
+//       | undefined,
+//     newValue: string | number | null,
+//     nodeRedTimestamp: any,
+//   ): { value: number | null; timestamp: string } {
+//     const valueNum =
+//       newValue !== null && newValue !== undefined ? Number(newValue) : null;
+
+//     // Always return object with value + timestamp
+//     const timestamp = new Date().toISOString();
+
+//     if (!prev) {
+//       return { value: valueNum, timestamp };
+//     }
+
+//     const prevNum =
+//       prev.value !== null && prev.value !== undefined
+//         ? Number(prev.value)
+//         : null;
+
+//     if (prevNum !== valueNum) {
+//       return { value: valueNum, timestamp };
+//     }
+
+//     // If value unchanged, keep previous timestamp
+//     return { value: valueNum, timestamp: prev.timestamp || timestamp };
+//   }
+
+//   // Transform raw data
+//   private transformData(raw: any, prevStructured: any = null) {
+//     const timestamp = raw['SAH_MTO_PQM1_timestamp'] ?? null;
+
+//     const structured: any = {
+//       voltageLN: {
+//         'Vln a (V)': Number(raw['SAH_MTO_PQM1_VOLTAGE_LINE_1_V']),
+//         'Vln b (V)': Number(raw['SAH_MTO_PQM1_VOLTAGE_LINE_2_V']),
+//         'Vln c (V)': Number(raw['SAH_MTO_PQM1_VOLTAGE_LINE_3_V']),
+//       },
+//       voltageLL: {
+//         'Vll ab (V)': Number(raw['SAH_MTO_PQM1_VOLTAGE_LINE_1_2_V']),
+//         'Vll bc (V)': Number(raw['SAH_MTO_PQM1_VOLTAGE_LINE_2_3_V']),
+//         'Vll ca (V)': Number(raw['SAH_MTO_PQM1_VOLTAGE_LINE_3_1_V']),
+//       },
+//       current: {
+//         'Ia (A)': Number(raw['SAH_MTO_PQM1_CURRENT_LINE_1_A']),
+//         'Ib (A)': Number(raw['SAH_MTO_PQM1_CURRENT_LINE_2_A']),
+//         'Ic (A)': Number(raw['SAH_MTO_PQM1_CURRENT_LINE_3_A']),
+//       },
+//       power: {
+//         'Active (kW)': {
+//           P1: Number(raw['SAH_MTO_PQM1_ACTIVE_POWER_P1_KW']),
+//           P2: Number(raw['SAH_MTO_PQM1_ACTIVE_POWER_P2_KW']),
+//           P3: Number(raw['SAH_MTO_PQM1_ACTIVE_POWER_P3_KW']),
+//           present: Number(raw['SAH_MTO_PQM1_ACTIVE_POWER_TOTAL_KW']),
+//         },
+//         'Reactive (kVAR)': {
+//           Q1: Number(raw['SAH_MTO_PQM1_REACTIVE_POWER_Q1_KVAR']),
+//           Q2: Number(raw['SAH_MTO_PQM1_REACTIVE_POWER_Q2_KVAR']),
+//           Q3: Number(raw['SAH_MTO_PQM1_REACTIVE_POWER_Q3_KVAR']),
+//           present: Number(raw['SAH_MTO_PQM1_REACTIVE_POWER_TOTAL_KVAR']),
+//         },
+//         'Apparent (kVA)': {
+//           S1: Number(raw['SAH_MTO_PQM1_APPARENT_POWER_S1_KVA']),
+//           S2: Number(raw['SAH_MTO_PQM1_APPARENT_POWER_S2_KVA']),
+//           S3: Number(raw['SAH_MTO_PQM1_APPARENT_POWER_S3_KVA']),
+//           present: Number(raw['SAH_MTO_PQM1_APPARENT_POWER_TOTAL_KVA']),
+//         },
+//         'Power Factor Total': Number(raw['SAH_MTO_PQM1_POWER_FACTOR_TOTAL']),
+//       },
+//       'Current Unbalance (%)': Number(
+//         raw['SAH_MTO_PQM1_UNBALANCE_FACTOR_CURRENT'],
+//       ),
+//       'Voltage Unbalance (%)': Number(
+//         raw['SAH_MTO_PQM1_UNBALANCE_FACTOR_VOLTAGE'],
+//       ),
+//       maxDemand: {
+//         current: {
+//           'Ia (A)': this.updateDemandField(
+//             prevStructured?.maxDemand?.current?.['Ia (A)'],
+//             raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_1_A'],
+//             timestamp,
+//           ),
+//           'Ib (A)': this.updateDemandField(
+//             prevStructured?.maxDemand?.current?.['Ib (A)'],
+//             raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_2_A'],
+//             timestamp,
+//           ),
+//           'Ic (A)': this.updateDemandField(
+//             prevStructured?.maxDemand?.current?.['Ic (A)'],
+//             raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_3_A'],
+//             timestamp,
+//           ),
+//         },
+//         power: {
+//           'Active (kW)': this.updateDemandField(
+//             prevStructured?.maxDemand?.power?.['Active (kW)'],
+//             raw['SAH_MTO_PQM1_MaxDemand_ACTIVE_POWER_KW'],
+//             timestamp,
+//           ),
+//           'Reactive (kVAR)': this.updateDemandField(
+//             prevStructured?.maxDemand?.power?.['Reactive (kVAR)'],
+//             raw['SAH_MTO_PQM1_MaxDemand_REACTIVE_POWER_KVAR'],
+//             timestamp,
+//           ),
+//           'Apparent (kVA)': this.updateDemandField(
+//             prevStructured?.maxDemand?.power?.['Apparent (kVA)'],
+//             raw['SAH_MTO_PQM1_MaxDemand_APPARENT_POWER_KVA'],
+//             timestamp,
+//           ),
+//         },
+//       },
+//     };
+
+//     return { structured, raw };
+//   }
+
+//   // Calculate averages
+//   private calculateAverages(structured: any) {
+//     const avg = (vals: number[]) => {
+//       const nums = vals.filter((v) => !isNaN(v));
+//       return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+//     };
+
+//     return {
+//       'I Average (A)': avg([
+//         structured.current['Ia (A)'],
+//         structured.current['Ib (A)'],
+//         structured.current['Ic (A)'],
+//       ]),
+//       'Voltage L-N Average (V)': avg([
+//         structured.voltageLN['Vln a (V)'],
+//         structured.voltageLN['Vln b (V)'],
+//         structured.voltageLN['Vln c (V)'],
+//       ]),
+//       'Voltage L-L Average (V)': avg([
+//         structured.voltageLL['Vll ab (V)'],
+//         structured.voltageLL['Vll bc (V)'],
+//         structured.voltageLL['Vll ca (V)'],
+//       ]),
+//     };
+//   }
+
+//   // Update snapshot
+//   async updateSnapshot(): Promise<void> {
+//     const newData = await this.fetchNodeRedData();
+//     if (!newData) return;
+
+//     const cleanedData = this.cleanData(newData);
+//     const prev = await this.snapshotModel.findOne().lean();
+//     const prevStructured = prev?.meterData?.structured || null;
+
+//     const { structured, raw } = this.transformData(cleanedData, prevStructured);
+//     const averages = this.calculateAverages(structured);
+
+//     await this.snapshotModel.updateOne(
+//       {},
+//       {
+//         $set: {
+//           'meterData.structured': structured,
+//           'meterData.averages': averages,
+//           'meterData.raw': raw,
+//         },
+//       },
+//       { upsert: true },
+//     );
+
+//     this.logger.log('Snapshot updated with Node-RED timestamps and averages');
+//   }
+
+//   async getSnapshot(): Promise<any> {
+//     const snapshot = await this.snapshotModel
+//       .findOne({}, { _id: 0, __v: 0 })
+//       .lean();
+//     return snapshot?.meterData || {};
+//   }
+// }

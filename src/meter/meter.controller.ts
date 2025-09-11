@@ -115,15 +115,11 @@ export class MeterController {
     };
   }
 
-  // @Get('demand-readings')
-  // async getDemandReadings() {
-  //   const snapshot = await this.meterService.getSnapshot();
-  //   if (!snapshot?.structured) return { message: 'No data available' };
+  @Get('demand-readings')
+  async getDemand() {
+    const snapshot = await this.meterService.getSnapshot();
+    if (!snapshot?.structured?.maxDemand) return {};
 
-  //   return {
-  //     maxDemand: snapshot.structured.maxDemand,
-  //     previousDemand: snapshot.structured.previousDemand,
-  //     demandTimeOfPeak: snapshot.demandTimeOfPeak,
-  //   };
-  // }
+    return snapshot.structured.maxDemand;
+  }
 }
