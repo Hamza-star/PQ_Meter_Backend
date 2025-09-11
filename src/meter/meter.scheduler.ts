@@ -7,7 +7,7 @@ import { MeterService } from './meter.service';
 export class MeterScheduler {
   constructor(private readonly meterService: MeterService) {}
 
-  @Cron('*/1 * * * * *') // every 2 seconds
+  @Cron('*/1 * * * * *') // every 1 seconds
   async handleCron() {
     await this.meterService.updateSnapshot();
   }

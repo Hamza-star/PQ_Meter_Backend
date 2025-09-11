@@ -118,8 +118,14 @@ export class MeterController {
   @Get('demand-readings')
   async getDemand() {
     const snapshot = await this.meterService.getSnapshot();
-    if (!snapshot?.structured?.maxDemand) return {};
+    if (!snapshot?.structured?.demandReadings) return {};
 
-    return snapshot.structured.maxDemand;
+    return snapshot.structured.demandReadings;
+  }
+  @Get('energy-readings')
+  async getEnergy() {
+    const snapshot = await this.meterService.getSnapshot();
+    if (!snapshot?.structured?.energyReadings) return {};
+    return snapshot.structured.energyReadings.present;
   }
 }
