@@ -604,4 +604,26 @@ export class MeterService {
 
     return snapshot?.meterData || {};
   }
+
+  async getWaveforms(): Promise<any> {
+    const snapshot = await this.snapshotModel
+      .findOne({}, { _id: 0, __v: 0 })
+      .lean();
+
+    const raw = snapshot?.meterData?.raw;
+    if (!raw) return null;
+
+    return {
+      voltage: {
+        v1: raw['SAH_MTO_PQM1_VOLTAGE_1'] ?? [],
+        v2: raw['SAH_MTO_PQM1_VOLTAGE_2'] ?? [],
+        v3: raw['SAH_MTO_PQM1_VOLTAGE_3'] ?? [],
+      },
+      current: {
+        I1: raw['SAH_MTO_PQM1_CURRENT_1'] ?? [],
+        I2: raw['SAH_MTO_PQM1_CURRENT_2'] ?? [],
+        I3: raw['SAH_MTO_PQM1_CURRENT_3'] ?? [],
+      },
+    };
+  }
 }

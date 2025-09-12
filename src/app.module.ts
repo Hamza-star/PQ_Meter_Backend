@@ -6,10 +6,11 @@ import configuration from 'helpers/db/configuration';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { MeterModule } from './meter/meter.module';
 import { PrivellegesModule } from './privelleges/privelleges.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
-import { MeterModule } from './meter/meter.module';
+import { HistoricalModule } from './meter/historical/historical.module';
 
 @Module({
   imports: [
@@ -25,11 +26,13 @@ import { MeterModule } from './meter/meter.module';
         uri: configService.get<string>('database.uri'),
       }),
     }),
+
     AuthModule,
     UsersModule,
     PrivellegesModule,
     RolesModule,
     MeterModule,
+    HistoricalModule,
   ],
   controllers: [AppController],
   providers: [AppService],

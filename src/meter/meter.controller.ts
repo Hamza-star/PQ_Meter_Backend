@@ -128,4 +128,18 @@ export class MeterController {
     if (!snapshot?.structured?.energyReadings) return {};
     return snapshot.structured.energyReadings.present;
   }
+
+  @Get('waveform/voltage')
+  async getVoltageWaveforms() {
+    const waveforms = await this.meterService.getWaveforms();
+    if (!waveforms?.voltage) return { message: 'No waveform data available' };
+    return waveforms.voltage;
+  }
+
+  @Get('waveform/current')
+  async getCurrentWaveforms() {
+    const waveforms = await this.meterService.getWaveforms();
+    if (!waveforms?.current) return { message: 'No waveform data available' };
+    return waveforms.current;
+  }
 }

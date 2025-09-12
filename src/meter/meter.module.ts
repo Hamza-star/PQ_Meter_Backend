@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MeterController } from './meter.controller';
-import { MeterScheduler } from './meter.scheduler';
 import { MeterService } from './meter.service';
 import { Snapshot, SnapshotSchema } from './schema/snapshot.schema';
 
@@ -14,6 +13,7 @@ import { Snapshot, SnapshotSchema } from './schema/snapshot.schema';
     ]),
   ],
   controllers: [MeterController],
-  providers: [MeterService, MeterScheduler],
+  providers: [MeterService],
+  exports: [MongooseModule],
 })
 export class MeterModule {}
