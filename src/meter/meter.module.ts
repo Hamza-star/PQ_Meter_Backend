@@ -14,6 +14,5 @@ import { Snapshot, SnapshotSchema } from './schema/snapshot.schema';
   ],
   controllers: [MeterController],
   providers: [MeterService],
-  exports: [MongooseModule],
 })
 export class MeterModule {}

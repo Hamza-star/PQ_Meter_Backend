@@ -10,7 +10,7 @@ import { MeterModule } from './meter/meter.module';
 import { PrivellegesModule } from './privelleges/privelleges.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
-import { HistoricalModule } from './meter/historical/historical.module';
+import { PQMeterModule } from './pq-meter/pq-meter.module';
 
 @Module({
   imports: [
@@ -32,7 +32,7 @@ import { HistoricalModule } from './meter/historical/historical.module';
     PrivellegesModule,
     RolesModule,
     MeterModule,
-    HistoricalModule,
+    PQMeterModule,
   ],
   controllers: [AppController],
   providers: [AppService],
