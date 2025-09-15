@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -133,9 +135,13 @@ export class MeterController {
     return snapshot.structured.energyReadings.present;
   }
 
+  @Get('waveforms')
+  async getWaveforms() {
+    return this.meterService.getWaveforms();
+  }
+
   @Get('phase-angles')
   async getPhaseAngles() {
-    const phaseAngles = await this.meterService.getPhaseAngles();
-    return phaseAngles;
+    return this.meterService.getPhaseAnglesWithMagnitude();
   }
 }

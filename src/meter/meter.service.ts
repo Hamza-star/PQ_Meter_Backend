@@ -132,6 +132,73 @@ export class MeterService {
         'I c (A)': raw['SAH_MTO_PQM1_Min_CURRENT_LINE_3_A'],
       },
 
+      maxPowerTotal: {
+        'Active (kW)': raw['SAH_MTO_PQM1_Max_ACTIVE_POWER_TOTAL_KW'],
+        'Reactive (kVAR)': raw['SAH_MTO_PQM1_Max_REACTIVE_POWER_TOTAL_KVAR'],
+        'Apparent (kVA)': raw['SAH_MTO_PQM1_Max_APPARENT_POWER_TOTAL_KVA'],
+      },
+      minPowerTotal: {
+        'Active (kW)': raw['SAH_MTO_PQM1_Min_ACTIVE_POWER_TOTAL_KW'],
+        'Reactive (kVAR)': raw['SAH_MTO_PQM1_Min_REACTIVE_POWER_TOTAL_KVAR'],
+        'Apparent (kVA)': raw['SAH_MTO_PQM1_Min_APPARENT_POWER_TOTAL_KVA'],
+      },
+
+      // ✅ Demand readings
+      demandReadings: {
+        current: {
+          'Ia (A)': this.updateDemandField(
+            prevStructured?.demandReadings?.current?.['Ia (A)'],
+            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_1_A'] ?? null,
+          ),
+          'Ib (A)': this.updateDemandField(
+            prevStructured?.demandReadings?.current?.['Ib (A)'],
+            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_2_A'] ?? null,
+          ),
+          'Ic (A)': this.updateDemandField(
+            prevStructured?.demandReadings?.current?.['Ic (A)'],
+            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_3_A'] ?? null,
+          ),
+        },
+        power: {
+          'Demand Power Active (kW)': this.updateDemandField(
+            prevStructured?.demandReadings?.power?.['Demand Power Active (kW)'],
+            raw['SAH_MTO_PQM1_MaxDemand_ACTIVE_POWER_KW'] ?? null,
+          ),
+          'Demand Power Reactive (kVAR)': this.updateDemandField(
+            prevStructured?.demandReadings?.power?.[
+              'Demand Power Reactive (kVAR)'
+            ],
+            raw['SAH_MTO_PQM1_MaxDemand_REACTIVE_POWER_KVAR'] ?? null,
+          ),
+          'Demand Apparent (kVA)': this.updateDemandField(
+            prevStructured?.demandReadings?.power?.['Demand Apparent (kVA)'],
+            raw['SAH_MTO_PQM1_MaxDemand_APPARENT_POWER_KVA'] ?? null,
+          ),
+        },
+        currentLastInterval: {
+          'Ia (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_1_A'] ?? null,
+          'Ib (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_2_A'] ?? null,
+          'Ic (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_3_A'] ?? null,
+        },
+        powerLastInterval: {
+          'Demand Power Active (kW)':
+            raw['SAH_MTO_PQM1_PreviousDemand_ACTIVE_POWER_KW'] ?? null,
+          'Demand Power Reactive (kVAR)':
+            raw['SAH_MTO_PQM1_PreviousDemand_REACTIVE_POWER_KVAR'] ?? null,
+          'Demand Power Apparent (kVA)':
+            raw['SAH_MTO_PQM1_PreviousDemand_APPARENT_POWER_KVA'] ?? null,
+        },
+      },
+
+      // ✅ Energy readings
+      energyReadings: {
+        present: {
+          'Active (kWh)': raw['SAH_MTO_PQM1_ACTIVE_ENERGY_EXPORT_KWH'],
+          'Reactive (kVARh)': raw['SAH_MTO_PQM1_REACTIVE_ENERGY_EXPORT_KVARH'],
+          'Apparent (kVAh)': raw['SAH_MTO_PQM1_APPARENT_ENERGY_KVAH'],
+        },
+      },
+
       // THD max/min tracking
       maxVoltageTHD: {},
       minVoltageTHD: {},
@@ -256,42 +323,79 @@ export class MeterService {
     return { structured, averages };
   }
 
-  async getPhaseAngles(): Promise<any> {
+  async getPhaseAnglesWithMagnitude(): Promise<any> {
     const rawData = await this.fetchNodeRedData();
     if (!rawData) return {};
 
-    // Parse phase angles and remove the "°" symbol if you want numeric values
-    const phaseAngles = {
-      voltage: {
-        'V1 (°)':
+    const voltage = {
+      Va: {
+        magnitude: rawData['SAH_MTO_PQM1_VOLTAGE_LINE_1_V'] ?? null,
+        angle:
           Number(
             rawData['SAH_MTO_PQM1_PhaseAngle_VOLTAGE_1']?.replace('°', ''),
           ) ?? null,
-        'V2 (°)':
+      },
+      Vb: {
+        magnitude: rawData['SAH_MTO_PQM1_VOLTAGE_LINE_2_V'] ?? null,
+        angle:
           Number(
             rawData['SAH_MTO_PQM1_PhaseAngle_VOLTAGE_2']?.replace('°', ''),
           ) ?? null,
-        'V3 (°)':
+      },
+      Vc: {
+        magnitude: rawData['SAH_MTO_PQM1_VOLTAGE_LINE_3_V'] ?? null,
+        angle:
           Number(
             rawData['SAH_MTO_PQM1_PhaseAngle_VOLTAGE_3']?.replace('°', ''),
           ) ?? null,
       },
-      current: {
-        'I1 (°)':
+    };
+
+    const current = {
+      Ia: {
+        magnitude: rawData['SAH_MTO_PQM1_CURRENT_LINE_1_A'] ?? null,
+        angle:
           Number(
             rawData['SAH_MTO_PQM1_PhaseAngle_CURRENT_1']?.replace('°', ''),
           ) ?? null,
-        'I2 (°)':
+      },
+      Ib: {
+        magnitude: rawData['SAH_MTO_PQM1_CURRENT_LINE_2_A'] ?? null,
+        angle:
           Number(
             rawData['SAH_MTO_PQM1_PhaseAngle_CURRENT_2']?.replace('°', ''),
           ) ?? null,
-        'I3 (°)':
+      },
+      Ic: {
+        magnitude: rawData['SAH_MTO_PQM1_CURRENT_LINE_3_A'] ?? null,
+        angle:
           Number(
             rawData['SAH_MTO_PQM1_PhaseAngle_CURRENT_3']?.replace('°', ''),
           ) ?? null,
       },
     };
 
-    return phaseAngles;
+    return { voltage, current };
+  }
+
+  // --- New waveform function ---
+  async getWaveforms(): Promise<any> {
+    const rawData = await this.fetchNodeRedData();
+    if (!rawData) return {};
+
+    const waveforms = {
+      voltage: {
+        V1: rawData['SAH_MTO_PQM1_VOLTAGE_1'] ?? [],
+        V2: rawData['SAH_MTO_PQM1_VOLTAGE_2'] ?? [],
+        V3: rawData['SAH_MTO_PQM1_VOLTAGE_3'] ?? [],
+      },
+      current: {
+        I1: rawData['SAH_MTO_PQM1_CURRENT_1'] ?? [],
+        I2: rawData['SAH_MTO_PQM1_CURRENT_2'] ?? [],
+        I3: rawData['SAH_MTO_PQM1_CURRENT_3'] ?? [],
+      },
+    };
+
+    return waveforms;
   }
 }
