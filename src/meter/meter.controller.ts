@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Controller, Get } from '@nestjs/common';
 import { MeterService } from './meter.service';
 
@@ -11,6 +9,7 @@ export class MeterController {
 
   @Get('snapshot')
   async getSnapshot() {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return this.meterService.getSnapshot();
   }
 
@@ -41,13 +40,11 @@ export class MeterController {
     return {
       current: {
         present: s.current,
-
-        min: s.minCurrent, // structured values
-        max: s.maxCurrent, // structured values
-
+        min: s.minCurrent,
+        max: s.maxCurrent,
         'I Average (A)': a['I Average (A)'],
-        'Max I Average': a.maxCurrent ?? null, // average max
-        'Min I Average': a.minCurrent ?? null, // average min
+        'Max I Average': a.maxCurrent ?? null,
+        'Min I Average': a.minCurrent ?? null,
         'Current Unbalance (%)': s['Current Unbalance (%)'],
       },
       voltageLN: {
@@ -100,16 +97,16 @@ export class MeterController {
         min: s.minVoltageLN,
         max: s.maxVoltageLN,
         'Voltage L-N Average (V)': a['Voltage L-N Average (V)'],
-        maxVoltageLN: a.maxVoltageLN, // overall max avg
-        minVoltageLN: a.minVoltageLN, // overall min avg
+        maxVoltageLN: a.maxVoltageLN,
+        minVoltageLN: a.minVoltageLN,
       },
       voltageLL: {
         present: s.voltageLL,
         min: s.minVoltageLL,
         max: s.maxVoltageLL,
         'Voltage L-L Average (V)': a['Voltage L-L Average (V)'],
-        maxVoltageLL: a.maxVoltageLL, // overall max avg
-        minVoltageLL: a.minVoltageLL, // overall min avg
+        maxVoltageLL: a.maxVoltageLL,
+        minVoltageLL: a.minVoltageLL,
       },
       'Voltage Unbalance (%)': s['Voltage Unbalance (%)'],
     };
@@ -119,27 +116,15 @@ export class MeterController {
   async getDemand() {
     const snapshot = await this.meterService.getSnapshot();
     if (!snapshot?.structured?.demandReadings) return {};
-
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return snapshot.structured.demandReadings;
   }
+
   @Get('energy-readings')
   async getEnergy() {
     const snapshot = await this.meterService.getSnapshot();
     if (!snapshot?.structured?.energyReadings) return {};
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return snapshot.structured.energyReadings.present;
-  }
-
-  @Get('waveform/voltage')
-  async getVoltageWaveforms() {
-    const waveforms = await this.meterService.getWaveforms();
-    if (!waveforms?.voltage) return { message: 'No waveform data available' };
-    return waveforms.voltage;
-  }
-
-  @Get('waveform/current')
-  async getCurrentWaveforms() {
-    const waveforms = await this.meterService.getWaveforms();
-    if (!waveforms?.current) return { message: 'No waveform data available' };
-    return waveforms.current;
   }
 }

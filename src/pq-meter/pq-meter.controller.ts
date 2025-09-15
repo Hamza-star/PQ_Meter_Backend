@@ -11,7 +11,7 @@ export class PqMeterController {
     return this.pqMeterService.testFindOne();
   }
 
-  @Get('aggregate')
+  @Get('trend')
   async aggregate(@Query('interval') interval: string) {
     return this.pqMeterService.aggregateByInterval(interval);
   }
