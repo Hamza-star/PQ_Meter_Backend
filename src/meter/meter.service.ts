@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Injectable, Logger } from '@nestjs/common';
@@ -41,6 +43,11 @@ export class MeterService {
     return prev!;
   }
 
+  private parseTHD(value: string | null): number | null {
+    if (!value) return null;
+    return Number(value.replace('%', '').trim());
+  }
+
   private transformData(raw: any, prevStructured: any = null) {
     const structured: any = {
       voltageLN: {
@@ -59,9 +66,7 @@ export class MeterService {
         'I c (A)': raw['SAH_MTO_PQM1_CURRENT_LINE_3_A'],
       },
       power: {
-        'Active (kW)': {
-          present: raw['SAH_MTO_PQM1_ACTIVE_POWER_TOTAL_KW'],
-        },
+        'Active (kW)': { present: raw['SAH_MTO_PQM1_ACTIVE_POWER_TOTAL_KW'] },
         'Reactive (kVAR)': {
           present: raw['SAH_MTO_PQM1_REACTIVE_POWER_TOTAL_KVAR'],
         },
@@ -74,14 +79,14 @@ export class MeterService {
       'Voltage Unbalance (%)': raw['SAH_MTO_PQM1_UNBALANCE_FACTOR_VOLTAGE'],
 
       voltageTHD: {
-        'V1 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_V1_THD_1'] ?? null,
-        'V2 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_V2_THD_1'] ?? null,
-        'V3 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_V3_THD_1'] ?? null,
+        'V1 THD (%)': this.parseTHD(raw['SAH_MTO_PQM1_Int THD-V1']),
+        'V2 THD (%)': this.parseTHD(raw['SAH_MTO_PQM1_Int THD-V2']),
+        'V3 THD (%)': this.parseTHD(raw['SAH_MTO_PQM1_Int THD-V3']),
       },
       currentTHD: {
-        'I1 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_I1_THD_1'] ?? null,
-        'I2 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_I2_THD_1'] ?? null,
-        'I3 THD 3s (%)': raw['SAH_MTO_PQM1_Int_HARMONICS_I3_THD_1'] ?? null,
+        'I1 THD (%)': this.parseTHD(raw['SAH_MTO_PQM1_Int THD-I1']),
+        'I2 THD (%)': this.parseTHD(raw['SAH_MTO_PQM1_Int THD-I2']),
+        'I3 THD (%)': this.parseTHD(raw['SAH_MTO_PQM1_Int THD-I3']),
       },
 
       kFactor: {
@@ -95,20 +100,21 @@ export class MeterService {
         'I3 Crest Factor': raw['SAH_MTO_PQM1_CrestFactor_VOLTAGE_3'] ?? null,
       },
 
+      // Existing max/min voltage and current
       maxVoltageLN: {
         'Vln a (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_1_V'],
         'Vln b (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_2_V'],
         'Vln c (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_3_V'],
       },
-      maxVoltageLL: {
-        'Vll ab (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_1_2_V'],
-        'Vll bc (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_2_3_V'],
-        'Vll ca (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_3_1_V'],
-      },
       minVoltageLN: {
         'Vln a (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_1_V'],
         'Vln b (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_2_V'],
         'Vln c (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_3_V'],
+      },
+      maxVoltageLL: {
+        'Vll ab (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_1_2_V'],
+        'Vll bc (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_2_3_V'],
+        'Vll ca (V)': raw['SAH_MTO_PQM1_Max_VOLTAGE_LINE_3_1_V'],
       },
       minVoltageLL: {
         'Vll ab (V)': raw['SAH_MTO_PQM1_Min_VOLTAGE_LINE_1_2_V'],
@@ -125,72 +131,48 @@ export class MeterService {
         'I b (A)': raw['SAH_MTO_PQM1_Min_CURRENT_LINE_2_A'],
         'I c (A)': raw['SAH_MTO_PQM1_Min_CURRENT_LINE_3_A'],
       },
-      maxPowerTotal: {
-        'Active (kW)': raw['SAH_MTO_PQM1_Max_ACTIVE_POWER_TOTAL_KW'],
-        'Reactive (kVAR)': raw['SAH_MTO_PQM1_Max_REACTIVE_POWER_TOTAL_KVAR'],
-        'Apparent (kVA)': raw['SAH_MTO_PQM1_Max_APPARENT_POWER_TOTAL_KVA'],
-      },
-      minPowerTotal: {
-        'Active (kW)': raw['SAH_MTO_PQM1_Min_ACTIVE_POWER_TOTAL_KW'],
-        'Reactive (kVAR)': raw['SAH_MTO_PQM1_Min_REACTIVE_POWER_TOTAL_KVAR'],
-        'Apparent (kVA)': raw['SAH_MTO_PQM1_Min_APPARENT_POWER_TOTAL_KVA'],
-      },
 
-      demandReadings: {
-        current: {
-          'Ia (A)': this.updateDemandField(
-            prevStructured?.demandReadings?.current?.['Ia (A)'],
-            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_1_A'] ?? null,
-          ),
-          'Ib (A)': this.updateDemandField(
-            prevStructured?.demandReadings?.current?.['Ib (A)'],
-            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_2_A'] ?? null,
-          ),
-          'Ic (A)': this.updateDemandField(
-            prevStructured?.demandReadings?.current?.['Ic (A)'],
-            raw['SAH_MTO_PQM1_MaxDemand_CURRENT_LINE_3_A'] ?? null,
-          ),
-        },
-        power: {
-          'Demand Power Active (kW)': this.updateDemandField(
-            prevStructured?.demandReadings?.power?.['Demand Power Active (kW)'],
-            raw['SAH_MTO_PQM1_MaxDemand_ACTIVE_POWER_KW'] ?? null,
-          ),
-          'Demand Power Reactive (kVAR)': this.updateDemandField(
-            prevStructured?.demandReadings?.power?.[
-              'Demand Power Reactive (kVAR)'
-            ],
-            raw['SAH_MTO_PQM1_MaxDemand_REACTIVE_POWER_KVAR'] ?? null,
-          ),
-          'Demand Apparent (kVA)': this.updateDemandField(
-            prevStructured?.demandReadings?.power?.['Demand Apparent (kVA)'],
-            raw['SAH_MTO_PQM1_MaxDemand_APPARENT_POWER_KVA'] ?? null,
-          ),
-        },
-
-        currentLastInterval: {
-          'Ia (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_1_A'] ?? null,
-          'Ib (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_2_A'] ?? null,
-          'Ic (A)': raw['SAH_MTO_PQM1_PreviousDemand_CURRENT_LINE_3_A'] ?? null,
-        },
-        powerLastInterval: {
-          'Demand Power Active (kW)':
-            raw['SAH_MTO_PQM1_PreviousDemand_ACTIVE_POWER_KW'] ?? null,
-          'Demand Power Reactive (kVAR)':
-            raw['SAH_MTO_PQM1_PreviousDemand_REACTIVE_POWER_KVAR'] ?? null,
-          'Demand Power Apparent (kVA)':
-            raw['SAH_MTO_PQM1_PreviousDemand_APPARENT_POWER_KVA'] ?? null,
-        },
-      },
-
-      energyReadings: {
-        present: {
-          'Active (kWh)': raw['SAH_MTO_PQM1_ACTIVE_ENERGY_EXPORT_KWH'],
-          'Reactive (kVARh)': raw['SAH_MTO_PQM1_REACTIVE_ENERGY_EXPORT_KVARH'],
-          'Apparent (kVAh)': raw['SAH_MTO_PQM1_APPARENT_ENERGY_KVAH'],
-        },
-      },
+      // THD max/min tracking
+      maxVoltageTHD: {},
+      minVoltageTHD: {},
+      maxCurrentTHD: {},
+      minCurrentTHD: {},
     };
+
+    const updateTHD = (
+      prevMax: number | null,
+      prevMin: number | null,
+      newVal: number | null,
+    ) => {
+      if (newVal === null || isNaN(newVal))
+        return { max: prevMax, min: prevMin };
+      return {
+        max: prevMax !== null ? Math.max(prevMax, newVal) : newVal,
+        min: prevMin !== null ? Math.min(prevMin, newVal) : newVal,
+      };
+    };
+
+    // Voltage THD
+    const voltageTHDKeys = ['V1 THD (%)', 'V2 THD (%)', 'V3 THD (%)'];
+    voltageTHDKeys.forEach((key, idx) => {
+      const prevMax = prevStructured?.maxVoltageTHD?.[key] ?? null;
+      const prevMin = prevStructured?.minVoltageTHD?.[key] ?? null;
+      const newVal = structured.voltageTHD[key];
+      const { max, min } = updateTHD(prevMax, prevMin, newVal);
+      structured.maxVoltageTHD[key] = max;
+      structured.minVoltageTHD[key] = min;
+    });
+
+    // Current THD
+    const currentTHDKeys = ['I1 THD (%)', 'I2 THD (%)', 'I3 THD (%)'];
+    currentTHDKeys.forEach((key, idx) => {
+      const prevMax = prevStructured?.maxCurrentTHD?.[key] ?? null;
+      const prevMin = prevStructured?.minCurrentTHD?.[key] ?? null;
+      const newVal = structured.currentTHD[key];
+      const { max, min } = updateTHD(prevMax, prevMin, newVal);
+      structured.maxCurrentTHD[key] = max;
+      structured.minCurrentTHD[key] = min;
+    });
 
     return { structured };
   }
@@ -247,6 +229,16 @@ export class MeterService {
         structured.minCurrent['I b (A)'],
         structured.minCurrent['I c (A)'],
       ]),
+      'Voltage THD Average (%)': avg([
+        structured.voltageTHD['V1 THD (%)'],
+        structured.voltageTHD['V2 THD (%)'],
+        structured.voltageTHD['V3 THD (%)'],
+      ]),
+      'Current THD Average (%)': avg([
+        structured.currentTHD['I1 THD (%)'],
+        structured.currentTHD['I2 THD (%)'],
+        structured.currentTHD['I3 THD (%)'],
+      ]),
     };
   }
 
@@ -262,5 +254,44 @@ export class MeterService {
     this.prevStructured = structured;
 
     return { structured, averages };
+  }
+
+  async getPhaseAngles(): Promise<any> {
+    const rawData = await this.fetchNodeRedData();
+    if (!rawData) return {};
+
+    // Parse phase angles and remove the "°" symbol if you want numeric values
+    const phaseAngles = {
+      voltage: {
+        'V1 (°)':
+          Number(
+            rawData['SAH_MTO_PQM1_PhaseAngle_VOLTAGE_1']?.replace('°', ''),
+          ) ?? null,
+        'V2 (°)':
+          Number(
+            rawData['SAH_MTO_PQM1_PhaseAngle_VOLTAGE_2']?.replace('°', ''),
+          ) ?? null,
+        'V3 (°)':
+          Number(
+            rawData['SAH_MTO_PQM1_PhaseAngle_VOLTAGE_3']?.replace('°', ''),
+          ) ?? null,
+      },
+      current: {
+        'I1 (°)':
+          Number(
+            rawData['SAH_MTO_PQM1_PhaseAngle_CURRENT_1']?.replace('°', ''),
+          ) ?? null,
+        'I2 (°)':
+          Number(
+            rawData['SAH_MTO_PQM1_PhaseAngle_CURRENT_2']?.replace('°', ''),
+          ) ?? null,
+        'I3 (°)':
+          Number(
+            rawData['SAH_MTO_PQM1_PhaseAngle_CURRENT_3']?.replace('°', ''),
+          ) ?? null,
+      },
+    };
+
+    return phaseAngles;
   }
 }

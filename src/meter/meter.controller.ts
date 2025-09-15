@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Controller, Get } from '@nestjs/common';
@@ -22,7 +23,11 @@ export class MeterController {
 
     return {
       voltageTHD: s.voltageTHD,
+      maxVoltageTHD: s.maxVoltageTHD,
+      minVoltageTHD: s.minVoltageTHD,
       currentTHD: s.currentTHD,
+      maxCurrentTHD: s.maxCurrentTHD,
+      minCurrentTHD: s.minCurrentTHD,
       kFactor: s.kFactor,
       crestFactor: s.crestFactor,
     };
@@ -126,5 +131,11 @@ export class MeterController {
     if (!snapshot?.structured?.energyReadings) return {};
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return snapshot.structured.energyReadings.present;
+  }
+
+  @Get('phase-angles')
+  async getPhaseAngles() {
+    const phaseAngles = await this.meterService.getPhaseAngles();
+    return phaseAngles;
   }
 }
