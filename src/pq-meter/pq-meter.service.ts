@@ -1,76 +1,105 @@
 import { Injectable } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
 import { Connection, Collection } from 'mongoose';
+import { DateTime } from 'luxon';
 
 @Injectable()
 export class PqMeterService {
   private source: Collection;
 
   constructor(@InjectConnection() private readonly connection: Connection) {
-    // PQ_Meter_Data collection bind kar di
-    this.source = this.connection.collection('PQ_Meter_data');
+    this.source = this.connection.collection('sample_data');
   }
 
-  // Test: Single document fetch karo
-  async testFindOne(): Promise<any> {
-    const doc = await this.source.findOne({});
-    console.log('Sample Document:', doc);
-    return doc;
-  }
-
-  // Latest N documents
-  async latestDocs(limit = 10): Promise<any[]> {
-    const docs = await this.source
-      .find({})
-      .sort({ timestamp: -1 })
-      .limit(limit)
-      .toArray();
-
-    console.log('Latest docs:', docs.length);
-    return docs;
-  }
-
-  // Aggregation: min, max, avg based on interval + document count
   async aggregateByInterval(interval: string): Promise<any[]> {
-    const now = new Date();
-    let start: Date;
-    let end: Date = new Date();
+    const now = DateTime.now().setZone('Asia/Karachi');
+    let start: DateTime;
+    let end: DateTime;
+    let unit: 'hour' | 'day';
 
-    // Interval logic
-    if (interval === 'today') {
-      start = new Date();
-      start.setHours(0, 0, 0, 0);
-    } else if (interval === 'yesterday') {
-      start = new Date();
-      start.setDate(start.getDate() - 1);
-      start.setHours(0, 0, 0, 0);
-      end = new Date(start);
-      end.setDate(end.getDate() + 1);
-    } else if (interval === 'thisWeek') {
-      const day = now.getDay();
-      start = new Date(now);
-      start.setDate(now.getDate() - day);
-      start.setHours(0, 0, 0, 0);
-    } else if (interval === 'last30days') {
-      start = new Date();
-      start.setDate(start.getDate() - 30);
-    } else {
-      start = new Date(0); // sabhi data
+    switch (interval) {
+      case 'today':
+        start = now.startOf('day');
+        end = now.endOf('day');
+        unit = 'hour';
+        break;
+      case 'yesterday':
+        start = now.minus({ days: 1 }).startOf('day');
+        end = now.minus({ days: 1 }).endOf('day');
+        unit = 'hour';
+        break;
+      case 'thisWeek':
+        start = now.startOf('week');
+        end = now.endOf('day');
+        unit = 'day';
+        break;
+      case 'lastWeek':
+        start = now.minus({ weeks: 1 }).startOf('week');
+        end = start.plus({ days: 6 }).endOf('day');
+        unit = 'day';
+        break;
+      case 'thisMonth':
+        start = now.startOf('month');
+        end = now.endOf('day');
+        unit = 'day';
+        break;
+      case 'lastMonth':
+        start = now.minus({ months: 1 }).startOf('month');
+        end = start.endOf('month');
+        unit = 'day';
+        break;
+      default:
+        throw new Error('Invalid interval');
     }
 
-    // Aggregation pipeline
-    return this.source
+    // Convert start/end to UTC for $match
+    const startUTC = start.toUTC().toJSDate();
+    const endUTC = end.toUTC().toJSDate();
+
+    const result = await this.source
       .aggregate([
-        {
-          $match: {
-            timestamp: { $gte: start, $lt: end },
-          },
-        },
+        { $match: { timestamp: { $gte: startUTC, $lte: endUTC } } },
         {
           $addFields: {
-            voltage: { $toDouble: '$SAH_MTO_PQM1_VOLTAGE_LINE_1_V' },
-            current: { $toDouble: '$SAH_MTO_PQM1_CURRENT_LINE_1_A' },
-            power: { $toDouble: '$SAH_MTO_PQM1_ACTIVE_POWER_TOTAL_KW' },
+            voltage: {
+              $toDouble: {
+                $trim: {
+                  input: {
+                    $replaceAll: {
+                      input: '$SAH_MTO_PQM1_VOLTAGE_LINE_1_V',
+                      find: ',',
+                      replacement: '',
+                    },
+                  },
+                },
+              },
+            },
+            current: {
+              $toDouble: {
+                $trim: {
+                  input: {
+                    $replaceAll: {
+                      input: '$SAH_MTO_PQM1_CURRENT_LINE_1_A',
+                      find: ',',
+                      replacement: '',
+                    },
+                  },
+                },
+              },
+            },
+            power: {
+              $toDouble: {
+                $trim: {
+                  input: {
+                    $replaceAll: {
+                      input: '$SAH_MTO_PQM1_ACTIVE_POWER_TOTAL_KW',
+                      find: ',',
+                      replacement: '',
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         {
@@ -78,12 +107,8 @@ export class PqMeterService {
             _id: {
               $dateTrunc: {
                 date: '$timestamp',
-                unit:
-                  interval === 'daily'
-                    ? 'day'
-                    : interval === 'monthly'
-                      ? 'month'
-                      : 'hour', // default hourly
+                unit,
+                timezone: 'Asia/Karachi',
               },
             },
             minVoltage: { $min: '$voltage' },
@@ -95,11 +120,18 @@ export class PqMeterService {
             minPower: { $min: '$power' },
             maxPower: { $max: '$power' },
             avgPower: { $avg: '$power' },
-            docCount: { $sum: 1 }, // document count
+            docCount: { $sum: 1 },
           },
         },
         { $sort: { _id: 1 } },
       ])
       .toArray();
+
+    return result;
+  }
+
+  // Optional: latest documents for debugging
+  async latestDocs(limit = 10): Promise<any[]> {
+    return this.source.find({}).sort({ timestamp: -1 }).limit(limit).toArray();
   }
 }

@@ -10,6 +10,7 @@ import { PQMeterModule } from './pq-meter/pq-meter.module';
 import { PrivellegesModule } from './privelleges/privelleges.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
+import { GraphModule } from './graph/graph.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { UsersModule } from './users/users.module';
     RolesModule,
     MeterModule,
     PQMeterModule,
+    GraphModule,
   ],
   controllers: [AppController],
   providers: [AppService],

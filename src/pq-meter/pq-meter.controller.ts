@@ -5,19 +5,16 @@ import { PqMeterService } from './pq-meter.service';
 export class PqMeterController {
   constructor(private readonly pqMeterService: PqMeterService) {}
 
-  @Get('test')
-  async testFindOne() {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return this.pqMeterService.testFindOne();
-  }
-
+  // Aggregation endpoint
   @Get('trend')
-  async aggregate(@Query('interval') interval: string) {
+  async getTrend(@Query('interval') interval: string) {
     return this.pqMeterService.aggregateByInterval(interval);
   }
 
+  // Latest documents endpoint
   @Get('latest')
-  async latestDocs() {
-    return this.pqMeterService.latestDocs(1);
+  async latest(@Query('limit') limit?: string) {
+    const l = limit ? parseInt(limit) : 10;
+    return this.pqMeterService.latestDocs(l);
   }
 }

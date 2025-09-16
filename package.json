@@ -38,6 +38,8 @@
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "ioredis": "^5.7.0",
+    "luxon": "^3.7.2",
+    "mongodb": "^6.19.0",
     "mongoose": "^8.18.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
