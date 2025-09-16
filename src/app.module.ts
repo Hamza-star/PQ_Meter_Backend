@@ -11,6 +11,7 @@ import { PrivellegesModule } from './privelleges/privelleges.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
 import { GraphModule } from './graph/graph.module';
+import { TrendsModule } from './trends/trends.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { GraphModule } from './graph/graph.module';
     MeterModule,
     PQMeterModule,
     GraphModule,
+    TrendsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
