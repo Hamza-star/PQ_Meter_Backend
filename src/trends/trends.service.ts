@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
@@ -16,29 +17,16 @@ export class TrendsService implements OnModuleInit, OnModuleDestroy {
       'mongodb+srv://alihamza:1uEiKEgyCfNg57qb@cluster0.rtxdhjc.mongodb.net/PQ_Meter?retryWrites=true&w=majority&appName=Cluster0',
     );
     await this.client.connect();
-    this.db = this.client.db('PQ_Meter');
-    this.pqCollection = this.db.collection('sample-data');
+    this.db = this.client.db('sample-data');
+    this.pqCollection = this.db.collection('P');
+
+    // ⚡ Ensure index on timestamp for fast filtering
+    await this.pqCollection.createIndex({ timestamp: 1 });
+    console.log('Connected and index ensured on timestamp');
   }
 
   async onModuleDestroy() {
     await this.client.close();
-  }
-
-  private async fetchData(start: Date, end: Date) {
-    return this.pqCollection
-      .find({
-        timestamp: { $gte: start.toISOString(), $lte: end.toISOString() },
-      })
-      .sort({ timestamp: 1 })
-      .toArray();
-  }
-
-  private calculateStats(values: number[]) {
-    if (!values.length) return { min: null, max: null, avg: null };
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const avg = values.reduce((a, b) => a + b, 0) / values.length;
-    return { min, max, avg };
   }
 
   private getFields(parameter: 'Voltage' | 'Current' | 'Power') {
@@ -73,50 +61,116 @@ export class TrendsService implements OnModuleInit, OnModuleDestroy {
     return [];
   }
 
-  private aggregateHourly(data: any[], parameter: string) {
-    const hourlyData: Record<string, number[]> = {};
-    const fields = this.getFields(parameter as 'Voltage' | 'Current' | 'Power');
+  private async aggregateInMongo(
+    parameter: 'Voltage' | 'Current' | 'Power',
+    start: Date,
+    end: Date,
+    groupBy: 'hour' | 'day' | 'month',
+  ) {
+    const fields = this.getFields(parameter);
 
-    data.forEach((doc) => {
-      const ts = new Date(doc.timestamp);
-      const key = `${ts.getUTCFullYear()}-${ts.getUTCMonth() + 1}-${ts.getUTCDate()} ${ts.getUTCHours()}:00`;
-      if (!hourlyData[key]) hourlyData[key] = [];
-      hourlyData[key].push(...fields.map((f) => +doc[f]));
-    });
+    // Step 1: Compute per-document min/max/avg first
+    const projectStage: any = {
+      $project: {
+        timestamp: 1,
+        perDocMin: { $min: fields.map((f) => ({ $toDouble: `$${f}` })) },
+        perDocMax: { $max: fields.map((f) => ({ $toDouble: `$${f}` })) },
+        perDocAvg: { $avg: fields.map((f) => ({ $toDouble: `$${f}` })) },
+      },
+    };
 
-    return Object.entries(hourlyData)
-      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-      .map(([interval, values]) => ({
-        interval,
-        parameter,
-        ...this.calculateStats(values),
-      }));
+    const aggData = await this.pqCollection
+      .aggregate([
+        { $match: { timestamp: { $gte: start, $lte: end } } },
+        projectStage,
+        {
+          $group: {
+            _id: { $dateTrunc: { date: '$timestamp', unit: groupBy } },
+            min: { $min: '$perDocMin' },
+            max: { $max: '$perDocMax' },
+            avg: { $avg: '$perDocAvg' },
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            interval: '$_id',
+            parameter: parameter,
+            min: 1,
+            max: 1,
+            avg: 1,
+          },
+        },
+        { $sort: { interval: 1 } },
+      ])
+      .toArray();
+
+    return aggData;
   }
 
-  private aggregateDaily(data: any[], parameter: string) {
-    const dailyData: Record<string, number[]> = {};
-    const fields = this.getFields(parameter as 'Voltage' | 'Current' | 'Power');
+  private fillMissingIntervals(
+    data: any[],
+    start: Date,
+    end: Date,
+    groupBy: 'hour' | 'day' | 'month',
+    parameter: 'Voltage' | 'Current' | 'Power',
+  ) {
+    const filled: any[] = [];
+    const cursor = new Date(start);
 
-    data.forEach((doc) => {
-      const ts = new Date(doc.timestamp);
-      const key = `${ts.getUTCFullYear()}-${ts.getUTCMonth() + 1}-${ts.getUTCDate()}`;
-      if (!dailyData[key]) dailyData[key] = [];
-      dailyData[key].push(...fields.map((f) => +doc[f]));
-    });
+    while (cursor <= end) {
+      let key: Date;
+      switch (groupBy) {
+        case 'hour':
+          key = new Date(
+            Date.UTC(
+              cursor.getUTCFullYear(),
+              cursor.getUTCMonth(),
+              cursor.getUTCDate(),
+              cursor.getUTCHours(),
+            ),
+          );
+          cursor.setUTCHours(cursor.getUTCHours() + 1);
+          break;
+        case 'day':
+          key = new Date(
+            Date.UTC(
+              cursor.getUTCFullYear(),
+              cursor.getUTCMonth(),
+              cursor.getUTCDate(),
+            ),
+          );
+          cursor.setUTCDate(cursor.getUTCDate() + 1);
+          break;
+        case 'month':
+          key = new Date(
+            Date.UTC(cursor.getUTCFullYear(), cursor.getUTCMonth(), 1),
+          );
+          cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+          break;
+      }
 
-    return Object.entries(dailyData)
-      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-      .map(([interval, values]) => ({
-        interval,
-        parameter,
-        ...this.calculateStats(values),
-      }));
+      const existing = data.find(
+        (d) => new Date(d.interval).getTime() === key.getTime(),
+      );
+      if (existing) filled.push(existing);
+      else
+        filled.push({
+          interval: key,
+          parameter,
+          min: null,
+          max: null,
+          avg: null,
+        });
+    }
+
+    return filled;
   }
 
   async getTrend(parameter: 'Voltage' | 'Current' | 'Power', interval: string) {
     const now = new Date();
     let start: Date, end: Date;
-    let useHourly = false;
+    let groupBy: 'hour' | 'day' | 'month' = 'day';
 
     switch (interval) {
       case 'today':
@@ -140,7 +194,7 @@ export class TrendsService implements OnModuleInit, OnModuleDestroy {
             59,
           ),
         );
-        useHourly = true;
+        groupBy = 'hour';
         break;
       case 'yesterday':
         start = new Date(
@@ -163,7 +217,7 @@ export class TrendsService implements OnModuleInit, OnModuleDestroy {
             59,
           ),
         );
-        useHourly = true;
+        groupBy = 'hour';
         break;
       case 'thisWeek':
         start = new Date(
@@ -177,6 +231,7 @@ export class TrendsService implements OnModuleInit, OnModuleDestroy {
           ),
         );
         end = now;
+        groupBy = 'day';
         break;
       case 'last7Days':
         start = new Date(
@@ -199,32 +254,48 @@ export class TrendsService implements OnModuleInit, OnModuleDestroy {
             59,
           ),
         );
+        groupBy = 'day';
         break;
       case 'thisMonth':
         start = new Date(
           Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0),
         );
         end = now;
+        groupBy = 'day';
         break;
-      case 'lastMonth':
+      case 'last30Days':
         start = new Date(
-          Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0),
+          Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate() - 30,
+            0,
+            0,
+            0,
+          ),
         );
         end = new Date(
-          Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0, 23, 59, 59),
+          Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate(),
+            23,
+            59,
+            59,
+          ),
         );
+        groupBy = 'day';
         break;
       case 'thisYear':
         start = new Date(Date.UTC(now.getUTCFullYear(), 0, 1, 0, 0, 0));
         end = now;
+        groupBy = 'month';
         break;
       default:
         throw new Error('Invalid interval');
     }
 
-    const data = await this.fetchData(start, end);
-
-    if (useHourly) return this.aggregateHourly(data, parameter);
-    return this.aggregateDaily(data, parameter);
+    const data = await this.aggregateInMongo(parameter, start, end, groupBy);
+    return this.fillMissingIntervals(data, start, end, groupBy, parameter);
   }
 }
