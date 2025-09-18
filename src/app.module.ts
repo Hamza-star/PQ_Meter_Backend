@@ -6,7 +6,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { MeterModule } from './meter/meter.module';
-import { PQMeterModule } from './pq-meter/pq-meter.module';
 import { PrivellegesModule } from './privelleges/privelleges.module';
 import { RolesModule } from './roles/roles.module';
 import { UsersModule } from './users/users.module';
@@ -44,7 +43,6 @@ import { TrendsModule } from './trends/trends.module';
     PrivellegesModule,
     RolesModule,
     MeterModule,
-    PQMeterModule,
     GraphModule,
     TrendsModule,
   ],

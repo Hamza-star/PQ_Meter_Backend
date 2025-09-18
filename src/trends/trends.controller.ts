@@ -46,11 +46,11 @@ export class TrendsController {
   }
 
   // Last Month
-  @Get('trend/lastMonth')
-  async getLastMonth(
+  @Get('trend/last30Days')
+  async getLast30Days(
     @Query('parameter') parameter: 'Voltage' | 'Current' | 'Power',
   ) {
-    return this.trendsService.getTrend(parameter, 'lastMonth');
+    return this.trendsService.getTrend(parameter, 'last30Days');
   }
 
   // This Year

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable no-constant-binary-expression */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -22,25 +23,42 @@ export class MeterService {
     }
   }
 
+  // private updateDemandField(
+  //   prev: { value: string | null; timestamp: string | null } | undefined,
+  //   newValue: string | null,
+  // ): { value: string | null; timestamp: string | null } {
+  //   if (newValue === null || newValue === undefined)
+  //     return prev || { value: null, timestamp: null };
+
+  //   const prevNum =
+  //     prev?.value !== null && prev?.value !== undefined
+  //       ? Number(prev.value)
+  //       : null;
+  //   const newNum = Number(newValue);
+
+  //   // Only update timestamp if value has changed
+  //   if (prevNum === null || prevNum !== newNum) {
+  //     return { value: newValue, timestamp: new Date().toISOString() };
+  //   }
+
+  //   return prev!;
+  // }
+
   private updateDemandField(
     prev: { value: string | null; timestamp: string | null } | undefined,
     newValue: string | null,
   ): { value: string | null; timestamp: string | null } {
-    if (newValue === null || newValue === undefined)
+    if (newValue === null || newValue === undefined) {
       return prev || { value: null, timestamp: null };
-
-    const prevNum =
-      prev?.value !== null && prev?.value !== undefined
-        ? Number(prev.value)
-        : null;
-    const newNum = Number(newValue);
-
-    // Only update timestamp if value has changed
-    if (prevNum === null || prevNum !== newNum) {
-      return { value: newValue, timestamp: new Date().toISOString() };
     }
 
-    return prev!;
+    // If previous value is same as new value, return prev (keep old timestamp)
+    if (prev?.value === newValue) {
+      return prev;
+    }
+
+    // Value has changed, update both value and timestamp
+    return { value: newValue, timestamp: new Date().toISOString() };
   }
 
   private parseTHD(value: string | null): number | null {
@@ -143,7 +161,7 @@ export class MeterService {
         'Apparent (kVA)': raw['SAH_MTO_PQM1_Min_APPARENT_POWER_TOTAL_KVA'],
       },
 
-      // ✅ Demand readings
+      // Demand readings
       demandReadings: {
         current: {
           'Ia (A)': this.updateDemandField(
@@ -190,7 +208,7 @@ export class MeterService {
         },
       },
 
-      // ✅ Energy readings
+      // Energy readings
       energyReadings: {
         present: {
           'Active (kWh)': raw['SAH_MTO_PQM1_ACTIVE_ENERGY_EXPORT_KWH'],
